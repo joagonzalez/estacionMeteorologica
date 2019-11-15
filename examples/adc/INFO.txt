@@ -1,0 +1,3 @@
+Fecha: 2017-11-04
+	Conversor AD simple con interrupcion generada por fin de conversion (DONE bit).
+	Version implementada con las funciones del LPCOpen.
