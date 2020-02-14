@@ -4,6 +4,7 @@ El proyecto consiste en la utilización del conversor analógico-digial (ADC) de
 Esta información será enviada al UART (universal async receiver-transmitter), el cual enviará datos de forma serial con payloads de hasta 8 bits. Como el ADC funciona con datos de 10 bits, se truncarán datos no significativos para ser enviados correctamente por el UART. A la placa EDU-CIAA, se conectará un módulo ESP8266 que recibirá por comuniación serie los datos recolectados con los sensores, esta información será transmitida via Wi-Fi a una base de datos de series de tiempo (influxDB) que luego será graficada con el objetivo de monitorear en tiempo real las variables deseadas.
 
 
+![Figura 1](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/diagrama_high_level_v2.png)
 
 
 
