@@ -14,6 +14,8 @@ En caso de tener error de permisos a la hora de grabar sketch en esp8266, dar pe
 chmod 777 /dev/ttyUSB0
 ```
 
+Para cargar librerias del board esp8266 en Arduino IDE utilizar el siguiente repositorio:
+- http://arduino.esp8266.com/stable/package_esp8266com_index.json
 
 
 ### Material de consulta
