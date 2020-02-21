@@ -26,3 +26,4 @@ Para cargar librerias del board esp8266 en Arduino IDE utilizar el siguiente rep
 - https://arduino-esp8266.readthedocs.io/en/latest/libraries.html#softwareserial
 - https://www.youtube.com/playlist?list=PLNFq0T6Z3JPsHwzvPQncip-kMIdWpnnip (esp8266 projects)
 - https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WebServer (webserver esp8266 arduino library)
+- https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino - esp8266 influxdb library
