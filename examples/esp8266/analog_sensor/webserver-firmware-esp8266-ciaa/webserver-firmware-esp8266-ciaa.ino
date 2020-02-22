@@ -11,7 +11,7 @@ ESP8266WiFiMulti wifiMulti;
 #include <InfluxDbClient.h>
 
 #define WIFI_SSID "X Files"
-#define WIFI_PASSWORD "mulderscully2011"
+#define WIFI_PASSWORD "password"
 #define INFLUXDB_URL "http://116.203.129.206:8086"
 #define INFLUXDB_DB_NAME "unsam_sensores"
 

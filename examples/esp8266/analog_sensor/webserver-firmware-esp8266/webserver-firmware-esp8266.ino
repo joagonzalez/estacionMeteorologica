@@ -5,7 +5,7 @@
 ESP8266WebServer server; // webserver object instance
 
 char* ssid = "X Files";
-char* password = "mulderscully2011";
+char* password = "password";
 uint8_t pin_led = 16;
 
 void setup(){
