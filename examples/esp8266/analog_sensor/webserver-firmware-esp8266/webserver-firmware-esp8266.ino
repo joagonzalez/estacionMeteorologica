@@ -12,6 +12,7 @@ void setup(){
   pinMode(pin_led, OUTPUT);
   WiFi.begin(ssid, password);
   Serial.begin(9600);
+  // Serial.begin(115200);
   while(WiFi.status()!=WL_CONNECTED){
     Serial.print(".");
     delay(500);

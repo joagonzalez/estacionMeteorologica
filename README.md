@@ -17,6 +17,27 @@ chmod 777 /dev/ttyUSB0
 Para cargar librerias del board esp8266 en Arduino IDE utilizar el siguiente repositorio:
 - http://arduino.esp8266.com/stable/package_esp8266com_index.json
 
+De la documentacion de la  libreria sAPI podemos ver que UART2 = USB y UART3 = RS232
+
+```
+ if( ( uart == UART_USB )  && (txIsrCallbackUART2 != 0) )
+         (*txIsrCallbackUART2)(0);
+      
+      if( ( uart == UART_232 )  && (txIsrCallbackUART3 != 0) )
+         (*txIsrCallbackUART3)(0);
+```
+
+Configuracion de UART en SCU
+```
+   // UART not routed
+   {  LPC_UART1, { 0, 0, 0     }, { 0, 0, 0     }, UART1_IRQn  }, // 2
+   // UART_USB
+   { LPC_USART2, { 7, 1, FUNC6 }, { 7, 2, FUNC6 }, USART2_IRQn }, // 3
+   // UART_ENET
+   { LPC_USART2, { 1,15, FUNC1 }, { 1,16, FUNC1 }, USART2_IRQn }, // 4
+   // UART_232
+   { LPC_USART3, { 2, 3, FUNC2 }, { 2, 4, FUNC2 }, USART3_IRQn }  // 5  
+```
 
 ### Material de consulta
 - https://www.youtube.com/watch?v=G6CqvhXpBKM (programming esp8266 with arduino ide)
@@ -27,3 +48,8 @@ Para cargar librerias del board esp8266 en Arduino IDE utilizar el siguiente rep
 - https://www.youtube.com/playlist?list=PLNFq0T6Z3JPsHwzvPQncip-kMIdWpnnip (esp8266 projects)
 - https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WebServer (webserver esp8266 arduino library)
 - https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino - esp8266 influxdb library
+- https://github.com/ciaa/firmware_v2/tree/master/modules/lpc4337_m4/sapi - sAPI (hardware abstraction layer interface for CIAA peripheral)
+    - https://github.com/ciaa/firmware_v2/blob/master/modules/lpc4337_m4/sapi/inc/sapi_uart.h - sAPI UART
+    - https://github.com/ciaa/firmware_v2/blob/master/sapi_examples/edu-ciaa-nxp/bare_metal/wifi_esp01_esp8266/01_uart_bridge/src/uartBridge_ESP8266.c - sAPI esp8266
+    - https://github.com/ciaa/firmware_v2/tree/master/sapi_examples/edu-ciaa-nxp/bare_metal
+- https://lastminuteengineers.com/bme280-esp8266-weather-station/ - arduino<->esp8266 integration
