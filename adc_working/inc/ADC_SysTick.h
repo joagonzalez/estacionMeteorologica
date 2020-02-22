@@ -3,7 +3,8 @@
 #include "board.h"
 #include <stdbool.h>
 #define SYSTEM_BAUD_RATE 115200
-#define CIAA_BOARD_UART USART2
+#define CIAA_BOARD_UART_USB USART2
+#define CIAA_BOARD_UART_RS232 USART3
 
 enum LEDS {LED1, LED2, LED3, LEDR, LEDG, LEDB}; 
 
@@ -551,8 +552,6 @@ void Config_Botones(int MASK);
 //void LED_OFF(GPIO_T *pGPIO, unsigned char port, unsigned char pin);
  
  
- 
-
 void LED_ON(enum LEDS);
 void LED_OFF(enum LEDS);
 
@@ -564,3 +563,4 @@ void SCU_GPIOIntPinSel(unsigned char PortSel, unsigned char PortNum, unsigned ch
 void NVIC_SetPri(IRQn_Type IRQn, unsigned int priority);
 void NVIC_EnaIRQ(IRQn_Type IRQn);
 void NVIC_DesIRQ(IRQn_Type IRQn);
+

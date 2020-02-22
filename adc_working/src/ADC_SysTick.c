@@ -25,7 +25,7 @@ void SysTick_Handler(void){
 
 void SysTickConfig(void){
 	
-	_SysTick->LOAD = 0x0D4C0;								// Set reload register
+	_SysTick->LOAD = 0x0d4c0;								// Set reload register
 	//_SysTick->LOAD = _SysTick->CALIB & 0x00FFFFFF;	// Set reload register
 													// CALIB se utiliza para obtener un timing
 													// de 10 ms (100 Hz)
@@ -75,7 +75,7 @@ int main (void)
 //	SysTick_Config(204000000/100);	// Establecimiento de la cuenta del SysTick
 	SysTickConfig();
 	ADC_Config();					// configuracion del ADC
-	LED_ON(LED1);					// indicacion de encendido
+	LED_ON(LEDB);					// indicacion de encendido
 
 	sprintf_mio(aux, "##### COMIENZA CAPTURA DE DATOS #####\n\r");
 	DEBUGSTR(aux);	
@@ -85,11 +85,11 @@ int main (void)
 			ticks = 0;
 			if (ledStatus){
 				ledStatus = 0;		// Cambia al otro estado
-				LED_OFF(LED2);		// Apaga el led
+				LED_OFF(LEDB);		// Apaga el led
 			}
 			else{
 				ledStatus = 1;		// Cambia al otro estado
-				LED_ON(LED2);		// Enciende el led
+				LED_ON(LEDB);		// Enciende el led
 
 				ADC0->CR = (1 << 24) | (ADC0->CR); // empezar lectura
 
@@ -106,16 +106,19 @@ int main (void)
 
 				if(ADC_CHANNEL == 2){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
-					sprintf_mio(aux, "CHANNEL 2: %d\r\n", ADC_BUF);
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
+					sprintf_mio(aux, "CHANNEL 2: %d | CHANNEL 2 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 1){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
-					sprintf_mio(aux, "CHANNEL 1: %d\r\n", ADC_BUF);
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
+					sprintf_mio(aux, "CHANNEL 1: %d | CHANNEL 1 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 3){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
-					sprintf_mio(aux, "CHANNEL 3: %d\r\n", ADC_BUF);
-					DEBUGSTR(aux);					
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
+					sprintf_mio(aux, "CHANNEL 3: %d | CHANNEL 3 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
+					DEBUGSTR(aux);				
 				}
 
 				if (ADC_CHANNEL == 1){

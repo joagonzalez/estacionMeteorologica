@@ -18,7 +18,8 @@ static void printchar(char **str, int c)
 		++(*str);
 	}
 	else 
-		UART_SendByte(CIAA_BOARD_UART, c);
+		UART_SendByte(CIAA_BOARD_UART_USB, c);
+		// UART_SendByte(CIAA_BOARD_UART_RS232, c);
 }
 
 #define PAD_RIGHT 1

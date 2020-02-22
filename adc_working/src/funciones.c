@@ -163,23 +163,3 @@ void TEC_IN(GPIO_T *pGPIO)
     pGPIO->DIR[0] |= (0 << 4) | (0 << 8) | (0 << 9);
     pGPIO->DIR[1] |= (0 << 9); 
 }
-
-/************************************************************************
-*Funcion para apagar los LEDS
- ************************************************************************/
- 
- /*void LED_OFF(GPIO_T *pGPIO, unsigned char port, unsigned char pin)
-{
-			if (port == 0)
-						{
-						pGPIO->CLR[port] = (1 << pin);
-						}
-			if (port == 1)
-						{
-						pGPIO->CLR[port] = (1 << pin);
-						}
-			else
-						{
-						pGPIO->CLR[port] = (1 << pin);
-						}
-}*/
