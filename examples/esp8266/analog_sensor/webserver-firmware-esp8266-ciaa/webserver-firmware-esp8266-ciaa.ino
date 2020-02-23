@@ -11,7 +11,7 @@ ESP8266WiFiMulti wifiMulti;
 #include <InfluxDbClient.h>
 
 #define WIFI_SSID "X Files"
-#define WIFI_PASSWORD "mulderscully2011"
+#define WIFI_PASSWORD "password"
 #define INFLUXDB_URL "http://116.203.129.206:8086"
 #define INFLUXDB_DB_NAME "unsam_sensores"
 uint8_t pin_led = 16;
@@ -90,6 +90,12 @@ void loop() {
       // Print what are we exactly writing
       Serial.print("Writing: ");
       Serial.println(sensor1.toLineProtocol());
+
+      // Write point
+      if (!client.writePoint(sensor1)) {
+        Serial.print("InfluxDB write failed for sensor 1: ");
+        Serial.println(client.getLastErrorMessage());
+      }
     }else if(channel == 2){
       sensor2.addField("rssi", WiFi.RSSI());
       sensor2.addField("channel", channel);
@@ -99,6 +105,12 @@ void loop() {
       // Print what are we exactly writing
       Serial.print("Writing: ");
       Serial.println(sensor2.toLineProtocol());
+
+      // Write point
+      if (!client.writePoint(sensor2)) {
+        Serial.print("InfluxDB write failed for sensor 1: ");
+        Serial.println(client.getLastErrorMessage());
+      }
     }else{
       sensor3.addField("rssi", WiFi.RSSI());
       sensor3.addField("channel", channel);
@@ -108,26 +120,17 @@ void loop() {
       // Print what are we exactly writing
       Serial.print("Writing: ");
       Serial.println(sensor3.toLineProtocol());
+
+      // Write point
+      if (!client.writePoint(sensor3)) {
+        Serial.print("InfluxDB write failed for sensor 1: ");
+        Serial.println(client.getLastErrorMessage());
+      }
     }
  
     // If no Wifi signal, try to reconnect it
     if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
       Serial.println("Wifi connection lost");
-    // Write point
-    if (!client.writePoint(sensor1)) {
-      Serial.print("InfluxDB write failed for sensor 1: ");
-      Serial.println(client.getLastErrorMessage());
-    }
-
-    if (!client.writePoint(sensor2)) {
-      Serial.print("InfluxDB write failed for sensor 2: ");
-      Serial.println(client.getLastErrorMessage());
-    }
-
-    if (!client.writePoint(sensor3)) {
-      Serial.print("InfluxDB write failed for sensor 3: ");
-      Serial.println(client.getLastErrorMessage());
-    }
 
     Serial.print("Datos recibidos EDU-CIAA ADC channel ");
     Serial.print(channel);
