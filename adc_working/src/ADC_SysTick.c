@@ -14,7 +14,7 @@ int i = 0;
 
 volatile int ticks = 0;		// cuenta las veces que el Systtick llego a cero
 volatile int ledStatus = 0; // estado del led indicador de toma de muestra
-volatile int delay_ms = 150;	// Control de la velocidad de la toma de muestras
+volatile int delay_ms = 300;	// Control de la velocidad de la toma de muestras
 
 unsigned int tmp;
 
@@ -25,7 +25,7 @@ void SysTick_Handler(void){
 
 void SysTickConfig(void){
 	
-	_SysTick->LOAD = 0x0d4c0;								// Set reload register
+	_SysTick->LOAD = 0x0d4c0;							// Set reload register
 	//_SysTick->LOAD = _SysTick->CALIB & 0x00FFFFFF;	// Set reload register
 													// CALIB se utiliza para obtener un timing
 													// de 10 ms (100 Hz)
@@ -106,16 +106,19 @@ int main (void)
 
 				if(ADC_CHANNEL == 2){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) 2);
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					sprintf_mio(aux, "CHANNEL 2: %d | CHANNEL 2 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 1){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
-					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) 1); // enviamos adc channel info
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF); // enviamos dato channel 1
 					sprintf_mio(aux, "CHANNEL 1: %d | CHANNEL 1 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 3){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) 3);
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					sprintf_mio(aux, "CHANNEL 3: %d | CHANNEL 3 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);				
