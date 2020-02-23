@@ -22,6 +22,7 @@ InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB_NAME);
 
 Point sensor1("temperature");
 Point sensor2("co2");
+Point sensor3("pressure");
 
 void setup() {
 
@@ -46,6 +47,9 @@ void setup() {
   sensor2.addTag("device", DEVICE);
   sensor2.addTag("SSID", WiFi.SSID());
 
+  sensor3.addTag("device", DEVICE);
+  sensor3.addTag("SSID", WiFi.SSID());
+
 
   // Check server connection
   if (client.validateConnection()) {
@@ -63,6 +67,7 @@ void loop() {
   // Store measured value into point
   sensor1.clearFields();
   sensor2.clearFields();
+  sensor3.clearFields();
 
   // read data from edu-ciaa
   while(messageReady == false){
@@ -95,14 +100,14 @@ void loop() {
       Serial.print("Writing: ");
       Serial.println(sensor2.toLineProtocol());
     }else{
-      sensor1.addField("rssi", WiFi.RSSI());
-      sensor1.addField("channel", channel);
-      sensor1.addField("value", message);
-      sensor1.addField("uptime", millis());
+      sensor3.addField("rssi", WiFi.RSSI());
+      sensor3.addField("channel", channel);
+      sensor3.addField("value", message);
+      sensor3.addField("uptime", millis());
 
       // Print what are we exactly writing
       Serial.print("Writing: ");
-      Serial.println(sensor1.toLineProtocol());
+      Serial.println(sensor3.toLineProtocol());
     }
  
     // If no Wifi signal, try to reconnect it
@@ -115,7 +120,12 @@ void loop() {
     }
 
     if (!client.writePoint(sensor2)) {
-      Serial.print("InfluxDB write failed for sensor 1: ");
+      Serial.print("InfluxDB write failed for sensor 2: ");
+      Serial.println(client.getLastErrorMessage());
+    }
+
+    if (!client.writePoint(sensor3)) {
+      Serial.print("InfluxDB write failed for sensor 3: ");
       Serial.println(client.getLastErrorMessage());
     }
 
