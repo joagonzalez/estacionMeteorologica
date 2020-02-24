@@ -41,6 +41,8 @@ Configuracion de UART en SCU
 
 ### Sensor de temperatura
 KY-013
+![Figura 2](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temperature.jpg)
+
 
 | Description  | Value |
 | ------------- | ------------- |
@@ -48,7 +50,9 @@ KY-013
 | Temperature measurement range  | 	-55°C to 125°C [-67°F to 257°F]  |
 | Measurement Accuracy  | 	±0.5°C |
 
-![Figura 2](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temp_ky013.png)
+Diagrama de conexión 
+
+![Figura 3](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temp_ky013.png)
 
 
 - https://arduinomodules.info/ky-013-analog-temperature-sensor-module/
