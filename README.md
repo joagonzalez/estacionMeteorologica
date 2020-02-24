@@ -39,8 +39,8 @@ Configuracion de UART en SCU
    { LPC_USART3, { 2, 3, FUNC2 }, { 2, 4, FUNC2 }, USART3_IRQn }  // 5  
 ```
 
-### Sensor de temperatura
-KY-013
+### Sensor de temperatura (KY-013)
+
 ![Figura 2](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temperature.jpg)
 
 
