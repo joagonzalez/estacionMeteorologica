@@ -39,6 +39,21 @@ Configuracion de UART en SCU
    { LPC_USART3, { 2, 3, FUNC2 }, { 2, 4, FUNC2 }, USART3_IRQn }  // 5  
 ```
 
+### Sensor de temperatura
+KY-013
+
+| Description  | Value |
+| ------------- | ------------- |
+| Operating Voltage  | 5V  |
+| Temperature measurement range  | 	-55°C to 125°C [-67°F to 257°F]  |
+| Measurement Accuracy  | 	±0.5°C |
+
+![Figura 2](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temp_ky013.png)
+
+
+- https://arduinomodules.info/ky-013-analog-temperature-sensor-module/
+- https://en.wikipedia.org/wiki/Steinhart%E2%80%93Hart_equation
+
 ### Material de consulta
 - https://www.youtube.com/watch?v=G6CqvhXpBKM (programming esp8266 with arduino ide)
 - https://www.youtube.com/watch?v=6-RXqFS_UtU&list=PLNFq0T6Z3JPsMWtVgmqPnpIu41LNMDPiA&index=8 (serial communication esp8266 and arduino)
