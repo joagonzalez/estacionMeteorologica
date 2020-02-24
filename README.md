@@ -72,6 +72,20 @@ Una observación sobre el diagrama de conexion, esta invertido el pinout positiv
 - https://en.wikipedia.org/wiki/Steinhart%E2%80%93Hart_equation
 - https://forum.arduino.cc/index.php?topic=209133.0 (documentacion inversion pinout)
 
+
+### Sensor de Gas (MQ-135)
+La hoja de datos del sensor se encuentra en la carpeta doc de este repositorio.
+
+Curva para detección de distintos gases
+
+![Figura 4](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_gas_mq135.png)
+
+Diagrama de conexión
+
+![Figura 5](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_gas.jpg)
+
+
+- 
 ### Material de consulta
 - https://www.youtube.com/watch?v=G6CqvhXpBKM (programming esp8266 with arduino ide)
 - https://www.youtube.com/watch?v=6-RXqFS_UtU&list=PLNFq0T6Z3JPsMWtVgmqPnpIu41LNMDPiA&index=8 (serial communication esp8266 and arduino)
