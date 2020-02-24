@@ -43,20 +43,34 @@ Configuracion de UART en SCU
 
 ![Figura 2](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temperature.jpg)
 
+Este sensor utiliza la ecuación de Stainhart-Hart (modelo de resistencia de semiconductores para distintas temperaturas). La ecuación con los coeficientes para una resistencia de 10kohm es:
+
+```
+R1 = 10000; // value of R1=10kohm on board
+c1 = 0.001129148, c2 = 0.000234125, c3 = 0.0000000876741; //steinhart-hart coeficients for thermistor
+
+R2 = R1 * (1023.0 / (float)Vo - 1.0); //calculate resistance on thermistor
+logR2 = log(R2);
+T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2)); // temperature in Kelvin
+T = T - 273.15; //convert Kelvin to Celcius
+```
 
 | Description  | Value |
 | ------------- | ------------- |
 | Operating Voltage  | 5V  |
 | Temperature measurement range  | 	-55°C to 125°C [-67°F to 257°F]  |
 | Measurement Accuracy  | 	±0.5°C |
+| Resistance  | 	10kohm |
 
 Diagrama de conexión 
 
 ![Figura 3](https://github.com/joagonzalez/unsam-meteorologia/blob/master/doc/sensor_temp_ky013.png)
 
+Una observación sobre el diagrama de conexion, esta invertido el pinout positivo/negativo. Va a haber mediciones incorrectas si no se inverte la alimentación del sensor (ver enlace adjuntado).
 
 - https://arduinomodules.info/ky-013-analog-temperature-sensor-module/
 - https://en.wikipedia.org/wiki/Steinhart%E2%80%93Hart_equation
+- https://forum.arduino.cc/index.php?topic=209133.0 (documentacion inversion pinout)
 
 ### Material de consulta
 - https://www.youtube.com/watch?v=G6CqvhXpBKM (programming esp8266 with arduino ide)
