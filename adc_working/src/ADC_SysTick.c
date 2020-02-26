@@ -1,5 +1,6 @@
 // FUNCIONANDO CANALES [1,2,3]
 #include "ADC_SysTick.h"
+#include <math.h>
 
 #define ADC_CHANNEL2 2
 #define ADC_CHANNEL1 1
@@ -14,7 +15,15 @@ int i = 0;
 
 volatile int ticks = 0;		// cuenta las veces que el Systtick llego a cero
 volatile int ledStatus = 0; // estado del led indicador de toma de muestra
-volatile int delay_ms = 300;	// Control de la velocidad de la toma de muestras
+volatile int delay_ms = 500;	// Control de la velocidad de la toma de muestras
+
+//steinhart-hart coeficients for thermistor
+float c1 = 0.001129148;
+float c2 = 0.000234125;
+float c3 = 0.0000000876741; 
+
+float R1 = 10000; // value of R1 on board
+float logR2, R2, T, temperature;
 
 unsigned int tmp;
 
@@ -67,6 +76,30 @@ static void ADC__Channel_Config(int channel) {
 	DEBUGSTR(aux);			
 }
 
+static float volt_to_degrees(unsigned short measurement, unsigned short channel) {
+	R2 = R1 * (1023.0 / (float) measurement - 1.0); //calculate resistance on thermistor
+	logR2 = log(R2);
+	T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2)); // temperature in Kelvin
+	T = T - 273.15 - 20; //convert Kelvin to Celcius
+
+	sprintf_mio(aux, "Temperature measured in channel %d: %d [°C]\r\n", channel, (unsigned short) T);
+	DEBUGSTR(aux);
+
+	return (unsigned short) T;			
+}
+
+static int adc_to_volt(unsigned short measurement){
+	float result = 0;
+
+	result = ((float) measurement * 3.3) / (1024.0);
+
+	sprintf_mio(aux, "ADC measurement: %d was converted to: %d [V]\r\n", measurement, (unsigned short) result);
+	DEBUGSTR(aux);
+	
+	return (unsigned short) result;
+
+}
+
 // Funcion principal
 int main (void)
 {
@@ -110,11 +143,21 @@ int main (void)
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					sprintf_mio(aux, "CHANNEL 2: %d | CHANNEL 2 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
+
+					sprintf_mio(aux, "###########################################\r\n");
+					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 1){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) 1); // enviamos adc channel info
-					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF); // enviamos dato channel 1
+					// UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF); // enviamos dato channel 1
 					sprintf_mio(aux, "CHANNEL 1: %d | CHANNEL 1 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
+					DEBUGSTR(aux);
+					// ADC_BUF = adc_to_volt(ADC_BUF);
+					adc_to_volt(ADC_BUF);
+					temperature = volt_to_degrees(ADC_BUF, ADC_CHANNEL);
+					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) temperature);
+
+					sprintf_mio(aux, "###########################################\r\n");
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 3){
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
