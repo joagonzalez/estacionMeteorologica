@@ -15,7 +15,7 @@ int i = 0;
 
 volatile int ticks = 0;		// cuenta las veces que el Systtick llego a cero
 volatile int ledStatus = 0; // estado del led indicador de toma de muestra
-volatile int delay_ms = 500;	// Control de la velocidad de la toma de muestras
+volatile int delay_ms = 2000;	// Control de la velocidad de la toma de muestras
 
 //steinhart-hart coeficients for thermistor
 float c1 = 0.001129148;
@@ -34,12 +34,12 @@ void SysTick_Handler(void){
 
 void SysTickConfig(void){
 	
-	_SysTick->LOAD = 0x0d4c0;							// Set reload register
+	_SysTick->LOAD = 0x31CE0;							// Set reload register LOAD = 204MHz (Hz) * Time (s) = 204.000.000 * 0.001 (1ms)
 	//_SysTick->LOAD = _SysTick->CALIB & 0x00FFFFFF;	// Set reload register
 													// CALIB se utiliza para obtener un timing
 													// de 10 ms (100 Hz)
 	_SysTick->VAL  = 0;								// Se limpia el valor
-	_SysTick->CTRL = (0 << 2) 	|	// Se usa el reloj del sistema (204 MHz)
+	_SysTick->CTRL = (1 << 2) 	|	// Se usa el reloj del sistema (204 MHz)
 					 (1 << 1)	|	// Habilitacion de la interrupcion cuando llega a 0
 					 (1 << 0);		// Habilitacion del contador	
 
@@ -65,7 +65,7 @@ static void ADC__Channel_Config(int channel) {
 	ADC0->CR = (0x00000000 << 0); // reset del registro CR
 
 	ADC0->CR |=	 (1 << channel) |		// Seleccion canal ADC0
-			(231 << 8) |	// ADC0 clkdiv (maximo = 255) => Freq = 204MHz / (11 * (clkdiv + 1))
+			(231 << 8) |	// ADC0 clkdiv (maximo = 255) => Freq = 204MHz / (11 * (clkdiv + 1)) = 80khz
 			(0 << 16) |		// Burst mode => Repeated conversions
 			(0 << 17) |		// 10 bits resolution
 			(1 << 21) |		// Power on
@@ -164,7 +164,10 @@ int main (void)
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) 3);
 					UART_SendByte(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					sprintf_mio(aux, "CHANNEL 3: %d | CHANNEL 3 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
-					DEBUGSTR(aux);				
+					DEBUGSTR(aux);	
+
+					sprintf_mio(aux, "###########################################\r\n");
+					DEBUGSTR(aux);			
 				}
 
 				if (ADC_CHANNEL == 1){
