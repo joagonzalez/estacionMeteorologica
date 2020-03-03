@@ -1,80 +1,27 @@
+// Trabajo practico Final
+// Materia: Electronica Digital II - 2019 (ECyT - UNSAM)
+//
+// Docentes:
+//	- Sagreras Miguel
+//	- Alvarez Nicolas
+// Alumnos:
+// 	- Gonzalez Joaquin - joagonzalez@gmail.com
+// 	- Pedraza Sebastian - sebastianpedraza2002@yahoo.com.ar
+
 #include "board.h"
 #include <stdbool.h>
-#define  SYSTEM_BAUD_RATE 115200
-#define CIAA_BOARD_UART LPC_USART2
-
-enum LEDS {LED1, LED2, LED3, LEDR, LEDG, LEDB}; 
-
-/************************************************************************************
- *	GPIO																			*
- ************************************************************************************/
-
-#define GPIO_PORT_BASE			0x400F4000	// direccion base del registro (pag. 455 / tabla 245)
-#define GPIO_PORT0_B_OFFSET		0x0000		// tabla 259
-#define GPIO_PORT1_B_OFFSET		0x0020		// tabla 259
-#define GPIO_PORT0_DIR_OFFSET	0x2000		// tabla 261
-#define GPIO_PORT1_DIR_OFFSET	0x2004		// tabla 261
-#define GPIO_PORT0_SET_OFFSET	0x2200		// tabla 265
-#define GPIO_PORT1_SET_OFFSET	0x2204		// tabla 265
-#define GPIO_PORT0_CLR_OFFSET	0x2280		// tabla 266
-#define GPIO_PORT1_CLR_OFFSET	0x2284		// tabla 266
-
-#define GPIO_PORT				((GPIO_T *)	GPIO_PORT_BASE)
-
-// GPIO Register
-typedef struct {				// Estructura para GPIO
-	unsigned char B[128][32];	// Offset 0x0000: Byte pin registers ports 0 to n; pins PIOn_0 to PIOn_31 */
-	int W[32][32];				// Offset 0x1000: Word pin registers port 0 to n
-	int DIR[32];				// Offset 0x2000: Direction registers port n
-	int MASK[32];				// Offset 0x2080: Mask register port n
-	int PIN[32];				// Offset 0x2100: Portpin register port n
-	int MPIN[32];				// Offset 0x2180: Masked port register port n
-	int SET[32];				// Offset 0x2200: Write: Set register for port n Read: output bits for port n
-	int CLR[32];				// Offset 0x2280: Clear port n
-	int NOT[32];				// Offset 0x2300: Toggle port n
-} GPIO_T;
+#include "sensores.h"
+#include "systick.h"
+#include "adc.h"
+#include "uart.h"
+#include "gpio.h"
 
 /************************************************************************************
- *	GPIO PIN INTERRUPT															*
- ************************************************************************************/
-
-#define PIN_INT_BASE			0x40087000		// Tabla 242, pag. 453
-#define GPIO_PIN_INT			((PIN_INT_T *) PIN_INT_BASE)
-
-// Pin Interrupt and Pattern Match register block structure
-typedef struct {			
-	int ISEL;				// Pin Interrupt Mode register
-	int IENR;				// Pin Interrupt Enable (Rising) register
-	int SIENR;				// Set Pin Interrupt Enable (Rising) register
-	int CIENR;				// Clear Pin Interrupt Enable (Rising) register
-	int IENF;				// Pin Interrupt Enable Falling Edge / Active Level register
-	int SIENF;				// Set Pin Interrupt Enable Falling Edge / Active Level register
-	int CIENF;				// Clear Pin Interrupt Enable Falling Edge / Active Level address
-	int RISE;				// Pin Interrupt Rising Edge register
-	int FALL;				// Pin Interrupt Falling Edge register
-	int IST;				// Pin Interrupt Status register
-} PIN_INT_T;
-
-/************************************************************************************
- *	GPIO PIN GROUP INTERRUPT (Revisar)											*
- ************************************************************************************/
-
-#define GRP0_INT_BASE		0x40088000	// direccion base del registro
-#define GPIO_GRP0_INT		((GRP0_INT_T *) GRP0_INT_BASE)
-
-// Estructura
-typedef struct {			
-	int CTRL;			//Table 256. GPIO grouped interrupt control register
-	int RESERVED0[7];
-	int PORT_POL[8];	//Table 257. GPIO grouped interrupt port polarity registers
-	int PORT_ENA[8];	//Table 258. GPIO grouped interrupt port n enable registers
-} GRP0_INT_T;
-	
-/************************************************************************************
- *	System Control Unit (SCU)														*
+ System Control Unit (SCU)
  ************************************************************************************/
 
 #define SCU_BASE			0x40086000
+#define LEDS_MASK		(SCU_MODE_DES | SCU_MODE_EZI)
 
 // Offset de los registros de configuracion para los pines (pag. 405)
 // Leds		
@@ -100,8 +47,56 @@ typedef struct {
 #define SCU_MODE_FUNC3		0x3				// seleccion de la funcion 3 del pin
 #define SCU_MODE_FUNC4		0x4				// seleccion de la funcion 4 del pin
 #define SCU_MODE_FUNC5		0x5				// seleccion de la funcion 5 del pin
+#define SCU_MODE_FUNC6		0x6				// seleccion de la funcion 6 del pin
 
 #define SCU					((SCU_T         *) 	SCU_BASE)
+
+#define _NVIC_BASE			0xE000E100		// NVIC Base Address (Tabla 81, pag. 115)
+#define _NVIC				((_NVIC_Type    *)  _NVIC_BASE)
+
+/** The number of bits of accuracy of the result in the LS bits of ADDR*/
+typedef enum _CHIP_ADC_RESOLUTION {
+	_ADC_10BITS = 0,		/**< ADC 10 bits */
+	_ADC_9BITS,			/**< ADC 9 bits  */
+	_ADC_8BITS,			/**< ADC 8 bits  */
+	_ADC_7BITS,			/**< ADC 7 bits  */
+	_ADC_6BITS,			/**< ADC 6 bits  */
+	_ADC_5BITS,			/**< ADC 5 bits  */
+	_ADC_4BITS,			/**< ADC 4 bits  */
+	_ADC_3BITS,			/**< ADC 3 bits  */
+} _ADC_RESOLUTION_T;
+
+/** The channels on one ADC peripheral*/
+typedef enum _CHIP_ADC_CHANNEL {
+	_ADC_CH0 = 0,	/**< ADC channel 0 */
+	_ADC_CH1,		/**< ADC channel 1 */
+	_ADC_CH2,		/**< ADC channel 2 */
+	_ADC_CH3,		/**< ADC channel 3 */
+	_ADC_CH4,		/**< ADC channel 4 */
+	_ADC_CH5,		/**< ADC channel 5 */
+	_ADC_CH6,		/**< ADC channel 6 */
+	_ADC_CH7,		/**< ADC channel 7 */
+} _ADC_CHANNEL_T;
+
+// Macro para el calculo de direcciones
+#define ADDRESS(x, offset) (*(volatile int *)(volatile char *) ((x)+(offset)))
+
+/************************************************************************************
+   ESTRUCTURA PARA LOS DIFERENTES REGISTROS
+ ************************************************************************************/
+
+ // GPIO Register
+typedef struct {				// Estructura para GPIO
+	unsigned char B[128][32];	// Offset 0x0000: Byte pin registers ports 0 to n; pins PIOn_0 to PIOn_31 */
+	int W[32][32];				// Offset 0x1000: Word pin registers port 0 to n
+	int DIR[32];				// Offset 0x2000: Direction registers port n
+	int MASK[32];				// Offset 0x2080: Mask register port n
+	int PIN[32];				// Offset 0x2100: Portpin register port n
+	int MPIN[32];				// Offset 0x2180: Masked port register port n
+	int SET[32];				// Offset 0x2200: Write: Set register for port n Read: output bits for port n
+	int CLR[32];				// Offset 0x2280: Clear port n
+	int NOT[32];				// Offset 0x2300: Toggle port n
+} GPIO_T;
 
 // System Control Unit Register
 typedef struct {
@@ -118,24 +113,7 @@ typedef struct {
 	int  PINTSEL[2];		// Pin interrupt select register for pin int 0 to 3 index 0, 4 to 7 index 1
 } SCU_T;
 
-
-/************************************************************************************
- *	SysTick																			*
- ************************************************************************************/
-#define _SysTick_BASE		0xE000E010	// Systick Base Address
-#define _SysTick			((SysTick_T 	*) 	_SysTick_BASE )
-
-// SysTick CTRL: Mascaras (ARM pag. B3-746)
-#define _SysTick_CTRL_COUNTFLAG_Msk	(1 << 16)	// SysTick CTRL: COUNTFLAG Mask
-#define _SysTick_CTRL_CLKSOURCE_Msk	(1 << 2)	// SysTick CTRL: CLKSOURCE Mask
-#define _SysTick_CTRL_TICKINT_Msk	(1 << 1)	// SysTick CTRL: TICKINT Mask
-#define _SysTick_CTRL_ENABLE_Msk	(1 << 0)	// SysTick CTRL: ENABLE Mask
-#define _SysTick_CTRL_DISABLE_Msk	(0 << 0)	// SysTick CTRL: DISABLE Mask
-/* #define COUNTFLAG		16	// SysTick CTRL: COUNTFLAG Mask
-#define CLKSOURCE		2	// SysTick CTRL: CLKSOURCE Mask
-#define TICKINT			1	// SysTick CTRL: TICKINT Mask
-#define ENABLE			0	// SysTick CTRL: ENABLE Mask */
-
+// SysTick (System Timer)
 typedef struct {
   int CTRL;					// Offset: 0x000 (R/W)  SysTick Control and Status Register
   int LOAD;					// Offset: 0x004 (R/W)  SysTick Reload Value Register
@@ -143,45 +121,19 @@ typedef struct {
   int CALIB;				// Offset: 0x00C (R/ )  SysTick Calibration Register
 } SysTick_T;
 
-/************************************************************************************
- *	ADC																				*
- ************************************************************************************/
-
-#define ADC0_BASE		0x400E3000
-#define ADC0 ((ADC_T *) ADC0_BASE)
-// Se podria agregar ADC1 apuntando a ADC0_BASE + tamaño de struct ADC (simil UART)
-static volatile uint8_t ADC_Interrupt_Done_Flag;
-static char debug[256];	                   // para debugging (usada por printf)
-
-//Estructura de los parametros del ADC0
-
-typedef struct {
-	int CR;					// Config Register
-	int GDR;				// Global Data Register
-	int RESERVADO;			// Reserved bits 
-	int INTEN;				// Interrupt enable register
-	int DR[8][32];				// Data register array for channels [0-7]
-	int STAT;				// ADC status register
-} ADC_T;
-
-/************************************************************************************
- *	UART / USART																	*
- ************************************************************************************/
-#define USART0_BASE           0x40081000
-#define USART2_BASE           0x400C1000
-#define USART3_BASE           0x400C2000
-#define UART1_BASE            0x40082000
-
-#define USART0				((USART_T	*) LPC_USART0_BASE)
-#define USART2				((USART_T	*) LPC_USART2_BASE)
-#define USART3				((USART_T	*) LPC_USART3_BASE)
-#define UART1				((USART_T	*) LPC_UART1_BASE)
-
-/************************************************************************************
- *	NVIC																			*
- ************************************************************************************/
-#define _NVIC_BASE			0xE000E100		// NVIC Base Address (Tabla 81, pag. 115)
-#define _NVIC				((_NVIC_Type    *)  _NVIC_BASE)
+// Pin Interrupt and Pattern Match register block structure
+typedef struct {			
+	int INSEL;				// Pin Interrupt Mode register
+	int IENR;				// Pin Interrupt Enable (Rising) register
+	int SIENR;				// Set Pin Interrupt Enable (Rising) register
+	int CIENR;				// Clear Pin Interrupt Enable (Rising) register
+	int IENF;				// Pin Interrupt Enable Falling Edge / Active Level register
+	int SIENF;				// Set Pin Interrupt Enable Falling Edge / Active Level register
+	int CIENF;				// Clear Pin Interrupt Enable Falling Edge / Active Level address
+	int RISE;				// Pin Interrupt Rising Edge register
+	int FALL;				// Pin Interrupt Falling Edge register
+	int IST;				// Pin Interrupt Status register
+} PIN_INT_T;
 
 typedef struct {
 	int ISER[8];			// Offset: 0x000 (R/W)  Interrupt Set Enable Register
@@ -199,10 +151,10 @@ typedef struct {
 	int STIR;				// Offset: 0xE00 ( /W)  Software Trigger Interrupt Register
 } _NVIC_Type;
 
-
+// Interrupciones
 #ifdef NO_LIBS
 typedef enum {
-	/* -------------------------  Cortex-M4 Processor Exceptions Numbers  ----------------------------- */
+	/* ----------------  Numeros de excepciones propias del procesador Cortex-M4  --------------------- */
 	Reset_IRQn                = -15, //  1  Reset Vector, invoked on Power up and warm reset
 	NonMaskableInt_IRQn       = -14, //  2  Non maskable Interrupt, cannot be stopped or preempted
 	HardFault_IRQn            = -13, //  3  Hard Fault, all classes of Fault
@@ -271,79 +223,134 @@ typedef enum {
 } IRQn_Type;
 #endif
 
-// USART Register
-typedef struct {
+// Relojes de los perifericos
+// Peripheral clocks are individual clocks routed to peripherals. Although
+// multiple peripherals may share a same base clock, each peripheral's clock
+// can be enabled or disabled individually. Some peripheral clocks also have
+// additional dividers associated with them.
+ #ifdef NO_LIBS
+typedef enum _CHIP_CCU_CLK {
+	/* CCU1 clocks */
+	CLK_APB3_BUS,		/*!< APB3 bus clock from base clock CLK_BASE_APB3 */
+	CLK_APB3_I2C1,		/*!< I2C1 register/perigheral clock from base clock CLK_BASE_APB3 */
+	CLK_APB3_DAC,		/*!< DAC peripheral clock from base clock CLK_BASE_APB3 */
+	CLK_APB3_ADC0,		/*!< ADC0 register/perigheral clock from base clock CLK_BASE_APB3 */
+	CLK_APB3_ADC1,		/*!< ADC1 register/perigheral clock from base clock CLK_BASE_APB3 */
+	CLK_APB3_CAN0,		/*!< CAN0 register/perigheral clock from base clock CLK_BASE_APB3 */
+	CLK_APB1_BUS = 32,	/*!< APB1 bus clock clock from base clock CLK_BASE_APB1 */
+	CLK_APB1_MOTOCON,	/*!< Motor controller register/perigheral clock from base clock CLK_BASE_APB1 */
+	CLK_APB1_I2C0,		/*!< I2C0 register/perigheral clock from base clock CLK_BASE_APB1 */
+	CLK_APB1_I2S,		/*!< I2S register/perigheral clock from base clock CLK_BASE_APB1 */
+	CLK_APB1_CAN1,		/*!< CAN1 register/perigheral clock from base clock CLK_BASE_APB1 */
+	CLK_SPIFI = 64,		/*!< SPIFI SCKI input clock from base clock CLK_BASE_SPIFI */
+	CLK_MX_BUS = 96,	/*!< M3/M4 BUS core clock from base clock CLK_BASE_MX */
+	CLK_MX_SPIFI,		/*!< SPIFI register clock from base clock CLK_BASE_MX */
+	CLK_MX_GPIO,		/*!< GPIO register clock from base clock CLK_BASE_MX */
+	CLK_MX_LCD,			/*!< LCD register clock from base clock CLK_BASE_MX */
+	CLK_MX_ETHERNET,	/*!< ETHERNET register clock from base clock CLK_BASE_MX */
+	CLK_MX_USB0,		/*!< USB0 register clock from base clock CLK_BASE_MX */
+	CLK_MX_EMC,			/*!< EMC clock from base clock CLK_BASE_MX */
+	CLK_MX_SDIO,		/*!< SDIO register clock from base clock CLK_BASE_MX */
+	CLK_MX_DMA,			/*!< DMA register clock from base clock CLK_BASE_MX */
+	CLK_MX_MXCORE,		/*!< M3/M4 CPU core clock from base clock CLK_BASE_MX */
+	RESERVED_ALIGN = CLK_MX_MXCORE + 3,
+	CLK_MX_SCT,			/*!< SCT register clock from base clock CLK_BASE_MX */
+	CLK_MX_USB1,		/*!< USB1 register clock from base clock CLK_BASE_MX */
+	CLK_MX_EMC_DIV,		/*!< ENC divider clock from base clock CLK_BASE_MX */
+	CLK_MX_FLASHA,		/*!< FLASHA bank clock from base clock CLK_BASE_MX */
+	CLK_MX_FLASHB,		/*!< FLASHB bank clock from base clock CLK_BASE_MX */
+//#if defined(CHIP_LPC43XX)
+	CLK_M4_M0APP,		/*!< M0 app CPU core clock from base clock CLK_BASE_MX */
+	CLK_MX_ADCHS,		/*!< ADCHS clock from base clock CLK_BASE_ADCHS */
+// #else
+	// CLK_RESERVED1,
+	// CLK_RESERVED2,
+// #endif
+	CLK_MX_EEPROM,		/*!< EEPROM clock from base clock CLK_BASE_MX */
+	CLK_MX_WWDT = 128,	/*!< WWDT register clock from base clock CLK_BASE_MX */
+	CLK_MX_UART0,		/*!< UART0 register clock from base clock CLK_BASE_MX */
+	CLK_MX_UART1,		/*!< UART1 register clock from base clock CLK_BASE_MX */
+	CLK_MX_SSP0,		/*!< SSP0 register clock from base clock CLK_BASE_MX */
+	CLK_MX_TIMER0,		/*!< TIMER0 register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_TIMER1,		/*!< TIMER1 register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_SCU,			/*!< SCU register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_CREG,		/*!< CREG clock from base clock CLK_BASE_MX */
+	CLK_MX_RITIMER = 160,	/*!< RITIMER register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_UART2,		/*!< UART3 register clock from base clock CLK_BASE_MX */
+	CLK_MX_UART3,		/*!< UART4 register clock from base clock CLK_BASE_MX */
+	CLK_MX_TIMER2,		/*!< TIMER2 register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_TIMER3,		/*!< TIMER3 register/perigheral clock from base clock CLK_BASE_MX */
+	CLK_MX_SSP1,		/*!< SSP1 register clock from base clock CLK_BASE_MX */
+	CLK_MX_QEI,			/*!< QEI register/perigheral clock from base clock CLK_BASE_MX */
+//#if defined(CHIP_LPC43XX)
+	CLK_PERIPH_BUS = 192,	/*!< Peripheral bus clock from base clock CLK_BASE_PERIPH */
+	CLK_RESERVED3,
+	CLK_PERIPH_CORE,	/*!< Peripheral core clock from base clock CLK_BASE_PERIPH */
+	CLK_PERIPH_SGPIO,	/*!< SGPIO clock from base clock CLK_BASE_PERIPH */
+// #else
+	// CLK_RESERVED3 = 192,
+	// CLK_RESERVED3A,
+	// CLK_RESERVED4,
+	// CLK_RESERVED5,
+// #endif
+	CLK_USB0 = 224,			/*!< USB0 clock from base clock CLK_BASE_USB0 */
+	CLK_USB1 = 256,			/*!< USB1 clock from base clock CLK_BASE_USB1 */
+//#if defined(CHIP_LPC43XX)
+	CLK_SPI = 288,			/*!< SPI clock from base clock CLK_BASE_SPI */
+	CLK_ADCHS = 320,		/*!< ADCHS clock from base clock CLK_BASE_ADCHS */
+// #else
+	// CLK_RESERVED7 = 320,
+	// CLK_RESERVED8,
+// #endif
+	CLK_CCU1_LAST,
 
-	union {
-		unsigned int  DLL; // Divisor Latch LSB. Least significant byte of the baud rate divisor value. The full divisor is used to generate a baud rate from the fractional rate divider (DLAB = 1).
-		unsigned int  THR; // Transmit Holding Register. The next character to be transmitted is written here (DLAB = 0).
-		unsigned int  RBR; // Receiver Buffer Register. Contains the next received character to be read (DLAB = 0).
-	};
+	/* CCU2 clocks */
+	CLK_CCU2_START,
+	CLK_APLL = CLK_CCU2_START,	/*!< Audio PLL clock from base clock CLK_BASE_APLL */
+	RESERVED_ALIGNB = CLK_CCU2_START + 31,
+	CLK_APB2_UART3,			/*!< UART3 clock from base clock CLK_BASE_UART3 */
+	RESERVED_ALIGNC = CLK_CCU2_START + 63,
+	CLK_APB2_UART2,			/*!< UART2 clock from base clock CLK_BASE_UART2 */
+	RESERVED_ALIGND = CLK_CCU2_START + 95,
+	CLK_APB0_UART1,			/*!< UART1 clock from base clock CLK_BASE_UART1 */
+	RESERVED_ALIGNE = CLK_CCU2_START + 127,
+	CLK_APB0_UART0,			/*!< UART0 clock from base clock CLK_BASE_UART0 */
+	RESERVED_ALIGNF = CLK_CCU2_START + 159,
+	CLK_APB2_SSP1,			/*!< SSP1 clock from base clock CLK_BASE_SSP1 */
+	RESERVED_ALIGNG = CLK_CCU2_START + 191,
+	CLK_APB0_SSP0,			/*!< SSP0 clock from base clock CLK_BASE_SSP0 */
+	RESERVED_ALIGNH = CLK_CCU2_START + 223,
+	CLK_APB2_SDIO,			/*!< SDIO clock from base clock CLK_BASE_SDIO */
+	CLK_CCU2_LAST
+} _CHIP_CCU_CLK_T;
+#endif
 
-	union {
-		unsigned int IER;	// Interrupt Enable Register. Contains individual interrupt enable bits for the 7 potential UART interrupts (DLAB = 0).
-		unsigned int DLM;	// Divisor Latch MSB. Most significant byte of the baud rate divisor value. The full divisor is used to generate a baud rate from the fractional rate divider (DLAB = 1).
-	};
-
-	union {
-		unsigned int FCR;	// FIFO Control Register. Controls UART FIFO usage and modes.
-		unsigned int IIR;	// Interrupt ID Register. Identifies which interrupt(s) are pending.
-	};
-
-	unsigned int LCR;		// Line Control Register. Contains controls for frame formatting and break generation.
-	unsigned int MCR;		// Modem Control Register. Only present on USART ports with full modem support.
-	unsigned int LSR;		// Line Status Register. Contains flags for transmit and receive status, including line errors.
-	unsigned int MSR;		// Modem Status Register. Only present on USART ports with full modem support.
-	unsigned int SCR;		// Scratch Pad Register. Eight-bit temporary storage for software.
-	unsigned int ACR;		// Auto-baud Control Register. Contains controls for the auto-baud feature.
-	unsigned int ICR;		// IrDA control register (not all UARTS)
-	unsigned int FDR;		// Fractional Divider Register. Generates a clock input for the baud rate divider.
-	unsigned int OSR;		// Oversampling Register. Controls the degree of oversampling during each bit time. Only on some UARTS.
-	unsigned int TER1;		// Transmit Enable Register. Turns off USART transmitter for use with software flow control.
-	unsigned int RESERVED0[3];
-    unsigned int HDEN;		// Half-duplex enable Register- only on some UARTs
-	unsigned int RESERVED1[1];
-	unsigned int SCICTRL;	// Smart card interface control register- only on some UARTs
-
-	unsigned int RS485CTRL;	// RS-485/EIA-485 Control. Contains controls to configure various aspects of RS-485/EIA-485 modes.
-	unsigned int RS485ADRMATCH;	// RS-485/EIA-485 address match. Contains the address match value for RS-485/EIA-485 mode.
-	unsigned int RS485DLY;		// RS-485/EIA-485 direction control delay.
-
-	union {
-		unsigned int SYNCCTRL;	// Synchronous mode control register. Only on USARTs.
-		unsigned int FIFOLVL;	// FIFO Level register. Provides the current fill levels of the transmit and receive FIFOs.
-	};
-
-	unsigned int TER2;			// Transmit Enable Register. Only on LPC177X_8X UART4 and LPC18XX/43XX USART0/2/3.
-} USART_T;
-
-
-// Se declaran funciones 
-void _Configuracion_IO(void);
+/*********************************************************************************
+   Encabezados de funciones
+ *********************************************************************************/
+ 
 void GPIO_SetPinDIROutput(GPIO_T *, unsigned char, unsigned char);
 void GPIO_SetPinDIRInput(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin);
+void GPIO_SetPinToggle(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin);
+void teclas_in(GPIO_T *pGPIO);
+void teclas_config(SCU_T *pSCU);
 
-void Config_LEDS(int MASK);
-void Config_Botones(int MASK);
-
-void LED_ON(enum LEDS);
-void LED_OFF(enum LEDS);
+void config_leds(int MASK);
+void config_botones(int MASK);
+void led_on(enum LEDS);
+void led_off(enum LEDS);
 
 int sprintf_mio(char *, const char *, ...);
+void uart_config(USART_T *pUART);
+void uart_enviar_datos(USART_T *pUART, unsigned char data);
 
-void UART_Init(void);
+float volt_to_degrees(unsigned short measurement, unsigned short channel);
+int adc_to_volt(unsigned short measurement);
 
-void SCU_GPIOIntPinSel(unsigned char PortSel, unsigned char PortNum, unsigned char PinNum);
+void systick_config(void);
+void SysTick_Handler(void);
 
-void NVIC_SetPri(IRQn_Type IRQn, unsigned int priority);
+void adc_config(int channel);
 
-void NVIC_EnaIRQ(IRQn_Type IRQn);
-void NVIC_DesIRQ(IRQn_Type IRQn);
-
-void GPIO_Secuencia();
-void SysTick_DAC_ENA(void);
-void Secuencia_Tecla(bool TEC,int LED);
-
-unsigned int ADC_CONFIG(unsigned int canal);
-unsigned int obt_datos(unsigned int canal);
-static void send_ADC_UART(uint16_t data);
+void retardo(int base);
+void blink_delay(enum LEDS led, int delay);
