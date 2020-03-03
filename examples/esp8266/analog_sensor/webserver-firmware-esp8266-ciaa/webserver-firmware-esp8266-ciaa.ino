@@ -12,7 +12,7 @@ ESP8266WiFiMulti wifiMulti;
 
 #define WIFI_SSID "X Files"
 #define WIFI_PASSWORD "password"
-#define INFLUXDB_URL "http://116.203.129.206:8086"
+#define INFLUXDB_URL "http://190.210.91.138:8086"
 #define INFLUXDB_DB_NAME "unsam_sensores"
 uint8_t pin_led = 16;
 int message = 0;
