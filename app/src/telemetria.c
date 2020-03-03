@@ -57,41 +57,39 @@ int main (void)
 				while ((ADC0->STAT && ADC_MASK) == 0){} // esperar a que lectura ok
 
 				if(ADC_CHANNEL == 2){
+					blink_delay(LED2, 5000000);
+
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
 					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) 2);
 					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					
-					blink_delay(LED2, 5000000);
-
-
 					sprintf_mio(aux, "CHANNEL 2: %d | CHANNEL 2 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);
 
 					sprintf_mio(aux, "###########################################\r\n");
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 1){
+					blink_delay(LED1, 5000000);
+					
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
-					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) 1); // enviamos adc channel info
-					// uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF); // enviamos dato channel 1
-					sprintf_mio(aux, "CHANNEL 1: %d | CHANNEL 1 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
-					DEBUGSTR(aux);
-					// ADC_BUF = adc_to_volt(ADC_BUF);
 					adc_to_volt(ADC_BUF);
 					temperature = volt_to_degrees(ADC_BUF, ADC_CHANNEL);
+					
+					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) 1); // enviamos adc channel info
 					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) temperature);
-
-					blink_delay(LED1, 5000000);
-
+					sprintf_mio(aux, "CHANNEL 1: %d | CHANNEL 1 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
+					DEBUGSTR(aux);
+					
 					sprintf_mio(aux, "###########################################\r\n");
 					DEBUGSTR(aux);
 				}else if(ADC_CHANNEL == 3){
+					blink_delay(LED3, 5000000);
+
 					ADC_BUF = (ADC0->DR[ADC_CHANNEL] >> 6) & 0x3FF;
 					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) 3);
 					uart_enviar_datos(CIAA_BOARD_UART_RS232, (uint8_t) ADC_BUF);
 					sprintf_mio(aux, "CHANNEL 3: %d | CHANNEL 3 CAST: %d\r\n", ADC_BUF, (uint8_t) ADC_BUF);
 					DEBUGSTR(aux);	
-
-					blink_delay(LED3, 5000000);
 
 					sprintf_mio(aux, "###########################################\r\n");
 					DEBUGSTR(aux);			
