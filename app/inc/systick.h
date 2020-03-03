@@ -20,4 +20,11 @@
 #define _SysTick_CTRL_TICKINT_Msk	(1 << 1)	// SysTick CTRL: TICKINT Mask
 #define _SysTick_CTRL_ENABLE_Msk	(1 << 0)	// SysTick CTRL: ENABLE Mask
 
+// SysTick (System Timer)
+typedef struct {
+  int CTRL;					// Offset: 0x000 (R/W)  SysTick Control and Status Register
+  int LOAD;					// Offset: 0x004 (R/W)  SysTick Reload Value Register
+  int VAL;					// Offset: 0x008 (R/W)  SysTick Current Value Register
+  int CALIB;				// Offset: 0x00C (R/ )  SysTick Calibration Register
+} SysTick_T;
 

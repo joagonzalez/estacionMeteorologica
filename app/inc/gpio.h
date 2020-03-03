@@ -30,3 +30,15 @@ enum LEDS {LED1, LED2, LED3, LEDR, LEDG, LEDB};
 
 #define GPIO_PORT				((GPIO_T *)	GPIO_PORT_BASE)
 
+ // GPIO Register
+typedef struct {				// Estructura para GPIO
+	unsigned char B[128][32];	// Offset 0x0000: Byte pin registers ports 0 to n; pins PIOn_0 to PIOn_31 */
+	int W[32][32];				// Offset 0x1000: Word pin registers port 0 to n
+	int DIR[32];				// Offset 0x2000: Direction registers port n
+	int MASK[32];				// Offset 0x2080: Mask register port n
+	int PIN[32];				// Offset 0x2100: Portpin register port n
+	int MPIN[32];				// Offset 0x2180: Masked port register port n
+	int SET[32];				// Offset 0x2200: Write: Set register for port n Read: output bits for port n
+	int CLR[32];				// Offset 0x2280: Clear port n
+	int NOT[32];				// Offset 0x2300: Toggle port n
+} GPIO_T;
