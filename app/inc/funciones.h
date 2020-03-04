@@ -18,11 +18,12 @@
  void uart_config(USART_T *pUART){
 
 	// Habilitacion del reloj para la UART. El reloj base debe estar habilitado
-	CCU1->CLKCCU[2].CFG = (1 << 0) | (1 << 1) | (1 << 2);;
+	CCU1->CLKCCU[2].CFG = (1 << 0) | (1 << 1) | (1 << 2);
    
 
 	// Chip_UART_SetupFIFOS
 	pUART->FCR = (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS);
+	// (1 << 0) | (1 << 1) | (1 << 2)
 
 	// Disable Tx
 	pUART->TER2 = 0;
@@ -41,7 +42,7 @@
 	pUART->RS485ADRMATCH = 0;
 	// Set Modem Control to default state
 	pUART->MCR = 0;
-	// Default 8N1, with DLAB disabled
+	//8N1, with DLAB disabled
  	// El LCR determina el formato del carácter de los datos que se va a transmitir o recibir
 	pUART->LCR =  (3 << 0)| //Largo de la palabra: 8 bits
 			 	  (0 << 2)| //Bit de parada: 1
