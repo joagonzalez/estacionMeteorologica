@@ -10,8 +10,8 @@ ESP8266WiFiMulti wifiMulti;
 
 #include <InfluxDbClient.h>
 
-#define WIFI_SSID "X Files"
-#define WIFI_PASSWORD "password"
+#define WIFI_SSID "OnePlus"
+#define WIFI_PASSWORD "Password01"
 #define INFLUXDB_URL "http://190.210.91.138:8086"
 #define INFLUXDB_DB_NAME "unsam_sensores"
 uint8_t pin_led = 16;

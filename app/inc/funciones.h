@@ -1,59 +1,199 @@
-//Funciones para controlar LEDs EDU CIAA
-#include "estructuras.h"
+// Trabajo practico Final
+// Materia: Electronica Digital II - 2019 (ECyT - UNSAM)
+//
+// Docentes:
+//	- Sagreras Miguel
+//	- Alvarez Nicolas
+// Alumnos:
+// 	- Gonzalez Joaquin - joagonzalez@gmail.com
+// 	- Pedraza Sebastian - sebastianpedraza2002@yahoo.com.ar
 
-//Base en ciclos
-void retardo(int base){
-    int i;
-    for(i=0;i<base;i++){}
+#include <math.h>
+#include "estructuras.h"  
+
+/************************************************************************************
+ *	Funciones UART
+ ************************************************************************************/
+
+ void uart_config(USART_T *pUART){
+
+	// Habilitacion del reloj para la UART. El reloj base debe estar habilitado
+	CCU1->CLKCCU[2].CFG = (1 << 0) | (1 << 1) | (1 << 2);
+   
+
+	// Chip_UART_SetupFIFOS
+	pUART->FCR = (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS);
+	// (1 << 0) | (1 << 1) | (1 << 2)
+
+	// Disable Tx
+	pUART->TER2 = 0;
+
+	// Disable interrupts
+	pUART->IER = 0;
+	// Set LCR to default state
+	pUART->LCR = 0;
+	// Set ACR to default state
+	pUART->ACR = 0;
+    // Set RS485 control to default state
+	pUART->RS485CTRL = 0;
+	// Set RS485 delay timer to default state
+	pUART->RS485DLY = 0;
+	// Set RS485 addr match to default state/
+	pUART->RS485ADRMATCH = 0;
+	// Set Modem Control to default state
+	pUART->MCR = 0;
+	//8N1, with DLAB disabled
+ 	// El LCR determina el formato del carácter de los datos que se va a transmitir o recibir
+	pUART->LCR =  (3 << 0)| //Largo de la palabra: 8 bits
+			 	  (0 << 2)| //Bit de parada: 1
+				  (0 << 3); //Paridad desactivada
+	// Disable fractional divider
+	pUART->FDR = 0x10;	//1 <= MULVAL <=15
+
+	// Set Baud rate
+	unsigned int clkin;
+
+	if(pUART == CIAA_BOARD_UART_USB){
+		clkin = Chip_Clock_GetRate(CLK_APB2_UART2);
+	}else if(pUART == CIAA_BOARD_UART_RS232){
+		clkin = Chip_Clock_GetRate(CLK_APB2_UART3);
+ 	}
+
+	int div = clkin / (SYSTEM_BAUD_RATE * 16);
+	// /* High and low halves of the divider */
+	int divh = div / 256;
+	int divl = div - (divh * 256);
+
+	//Divisor de palabras
+	pUART->LCR |= (1 << 7); //Habilitacion del divisor
+
+	pUART->DLL = (uint32_t) divl; //El byte menos significativo del valor del divisor de la tasa de baudios.
+	pUART->DLM = (uint32_t) divh; //El byte más significativo del valor del divisor de la tasa de baudios.
+	
+	pUART->LCR &= ~(1 << 7); //Desactivacion del divisor
+
+   	//Modify FCR (FIFO Control Register)
+	pUART->FCR =  (1 << 0)| // Habilitacion de FIFO de la UART
+	      		  (1 << 1)| // Reset de la FIFO del Receptor (Rx)
+				  (1 << 2); // Reset de la FIFO del Transmisor (Tx)
+
+	//Habilitacion del transmisor (Tx) de la UART 
+    pUART->TER2 = (1 << 0);
+
+	if(pUART == CIAA_BOARD_UART_USB){
+		/* P7_1: UART2_TXD */
+		SCU->SFSP[7][1] = (MD_PDN | SCU_MODE_FUNC6);
+		/* P7_2: UART2_RXD */
+		SCU->SFSP[7][2] = (MD_PLN | SCU_MODE_EZI | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC6);	
+	}else if(pUART == CIAA_BOARD_UART_RS232){
+		/* P2_4: UART3_RXD */
+		SCU->SFSP[2][4] = (MD_PLN | SCU_MODE_EZI | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC2);
+		/* P2_3: UART3_TXD */
+		SCU->SFSP[2][3] = (MD_PDN | SCU_MODE_FUNC2);
+	}
+
+	// Enable UART Rx Interrupt
+	pUART->IER |= (1 << 0); //Activa la interrupción de Recibir Datos Disponibles para el USART (table 927)
+   
 }
 
-//Registro DIR - Setea puerto como entrada o salida
-void GPIO_SetPinDIROutput(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin){
-    pGPIO->DIR[puerto] |= (1 << pin);
+void uart_enviar_datos(USART_T *pUART, unsigned char data){
+	pUART->THR = (unsigned int) data;
 }
 
-void GPIO_SetPinDIRInput(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin){
-    pGPIO->DIR[puerto] |= (0 << pin);
+/************************************************************************************
+ *	Funciones ADC
+************************************************************************************/
+
+void adc_config(int channel){
+	static char aux[256];	// para debugging (usada por printf)
+
+	ADC0->CR = (0x00000000 << 0); // reset del registro CR
+
+	ADC0->CR |=	 (1 << channel) |		// Seleccion canal ADC0
+                 (231 << 8) |	// ADC0 clkdiv (maximo = 255) => Freq = 204MHz / (11 * (clkdiv + 1)) = 80khz
+                 (0 << 16) |		// Burst mode => Repeated conversions
+                 (0 << 17) |		// 10 bits resolution
+                 (1 << 21) |		// Power on
+                 (0 << 24) |		// Conversion start => Burst controlled (not software)
+                 (0 << 27) ;		// Start signal edge => Burst => Not significant bit
+
+	sprintf_mio(aux, "Configuring ADC0->CR of channel %d: %d\r\n", channel, ADC0->CR);
+	DEBUGSTR(aux);			
 }
 
-int GPIO_GetPinDir(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin){
-    int state;
-    state = pGPIO->DIR[puerto];
-    (state >> pin) && 0x1;
-    return(state);
+unsigned short status_bit_config(int channel){
+	unsigned short ADC_MASK;
+
+	if(channel == 2){
+		ADC_MASK = 0b0100; // lectura canal 2
+	}else if(channel == 1){
+		ADC_MASK = 0b0010; // lectura canal 1
+	}else{
+		ADC_MASK = 0b1000; // lectura canal 3
+	}
+
+	return ADC_MASK;
+
 }
 
-//Registro DIR con mascara para manipular multiples bits a la vez
-void GPIO_SetPortDIROutput(GPIO_T *pGPIO, unsigned char puerto, int mascara) {
-	pGPIO->DIR[puerto] |= mascara;
+/************************************************************************************
+ *	Funciones SysTick
+ ************************************************************************************/
+ 
+ void systick_config(void){
+	_SysTick->LOAD = 0x31CE0;		// Reload register - LOAD = 204MHz (Hz) * Time (s) = 204.000.000 * 0.001 (1ms)
+	_SysTick->VAL  = 0;				// Inicializar current VAL en 0
+	_SysTick->CTRL = (1 << 2) 	|	// Se usa el reloj del sistema (204 MHz)
+					 (1 << 1)	|	// Habilitacion de la interrupcion cuando llega a 0
+					 (1 << 0);		// Habilitacion del contador	
+
 }
 
-void GPIO_SetPortDIRInput(GPIO_T *pGPIO, unsigned char puerto, int mascara) {
-	pGPIO->DIR[puerto] &= ~(mascara);
+/************************************************************************************
+ *	Funciones Sensores
+ ************************************************************************************/
+
+float volt_to_degrees(unsigned short measurement, unsigned short channel) {
+	static char aux[256];	// para debugging (usada por printf)
+
+	R2 = R1 * (1023.0 / (float) measurement - 1.0); //calculate resistance on thermistor
+	logR2 = log(R2);
+	T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2)) - 20; // temperature in Kelvin
+	T = T - 273.15; //convert Kelvin to Celcius
+
+	sprintf_mio(aux, "Temperature measured in channel %d: %d [°C]\r\n", channel, (unsigned short) T);
+	DEBUGSTR(aux);
+
+	return (unsigned short) T;			
 }
 
-int GPIO_GetPortDIR(GPIO_T *pGPIO, unsigned char puerto){
-	int state;
-    state = pGPIO->DIR[puerto];
-	return(state);
+int adc_to_volt(unsigned short measurement){
+	static char aux[256];	// para debugging (usada por printf)
+	float result = 0;
+
+	result = ((float) measurement * 3.3) / (1024.0);
+
+	sprintf_mio(aux, "ADC measurement: %d was converted to: %d [V]\r\n", measurement, (unsigned short) result);
+	DEBUGSTR(aux);
+	
+	return (unsigned short) result;
+
 }
 
-//SET y CLEAR de los puertos GPIO
-void GPIO_SetPin(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin, int valor){
-    pGPIO->SET[puerto] |= (valor << pin);        
+/************************************************************************************
+ *	Funciones GPIO
+ ************************************************************************************/
+
+void GPIO_SetPinDIROutput(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin) {
+	pGPIO->DIR[puerto] |= 1 << pin;
 }
 
-void GPIO_ClearPin(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin, int valor){
-    pGPIO->CLR[puerto] |= (valor << pin);
+void GPIO_SetPinDIRInput(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin) {
+	pGPIO->DIR[puerto] &= ~(1 << pin);
 }
 
-int GPIO_GetPinState(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin){
-    int state;
-    state = pGPIO->PIN[puerto];
-    return(state);
-}
-
-void LED_ON(enum LEDS led) {
+void led_on(enum LEDS led) {
 	
 	switch(led) {
 		case 0:
@@ -77,7 +217,7 @@ void LED_ON(enum LEDS led) {
 	}
 }
 
-void LED_OFF(enum LEDS led) {
+void led_off(enum LEDS led) {
 	
 	switch(led) {
 		case 0:
@@ -101,57 +241,7 @@ void LED_OFF(enum LEDS led) {
 	}
 }
 
-//Secuencia de leds predefinida en funcion - Heredada de practica 3
-void GPIO_Secuencia(){
-
-while(1){
-		//APAGAR LEDS 
-        
-        LED_OFF(0);
-        retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,5,0,1);
-        LED_OFF(1);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,5,1,1);
-        LED_OFF(2);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,5,2,1);
-
-        LED_OFF(3);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,0,14,1);
-        LED_OFF(4);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,1,11,1);       
-        LED_OFF(5);
-        retardo(1000000); //Delay 0.5 seg
-        //GPIO_ClearPin(GPIO_PORT,1,12,1);
-
-		//ENCENDER LEDS 
-        LED_ON(0);
-        retardo(1000000); //Delay 0.5 seg
-        //GPIO_SetPin(GPIO_PORT,5,0,1);
-		LED_ON(1);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_SetPin(GPIO_PORT,5,1,1);
-		LED_ON(2);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_SetPin(GPIO_PORT,5,2,1);
-
-        LED_ON(3);
-		retardo(1000000); //Delay 0.5 seg
-		//GPIO_SetPin(GPIO_PORT,0,14,1);
-        LED_ON(4);
-		retardo(1000000); //Delay 0.5 seg
-		//GPIO_SetPin(GPIO_PORT,1,12,1);
-        LED_ON(5);
-		retardo(1000000); //Delay 0.5 seg
-        //GPIO_SetPin(GPIO_PORT,1,11,1);
-	}
-}
-
-
-void Config_LEDS(int MASK) {
+void config_leds(int MASK) {
 	// Configuracion de los pines (LED1, LED2, LED3, LEDR, LEDG y LEDB) como GPIO
 	// (Registro de configuracion, pag 405 / Tabla 191)
 	SCU->SFSP[2][10] = (MASK | SCU_MODE_FUNC0); // P2_10, GPIO0[14], LED1
@@ -172,7 +262,7 @@ void Config_LEDS(int MASK) {
 	
 }
 
-void Config_Botones(int MASK) {
+void config_botones(int MASK) {
 	SCU->SFSP[1][0] = (MASK | SCU_MODE_FUNC0); 	// P1_0, GPIO0[4], TEC_1
 	SCU->SFSP[1][1] = (MASK | SCU_MODE_FUNC0); 	// P1_1, GPIO0[8], TEC_2
 	SCU->SFSP[1][2] = (MASK | SCU_MODE_FUNC0); 	// P1_2, GPIO0[9], TEC_3
@@ -185,177 +275,229 @@ void Config_Botones(int MASK) {
 	
 }
 
-void UART_Init(void){
-
-   //Initialize peripheral
-   Chip_UART_Init(CIAA_BOARD_UART);
-	
-   // Set Baud rate
-   Chip_UART_SetBaud(CIAA_BOARD_UART, SYSTEM_BAUD_RATE);
-
-   //Modify FCR (FIFO Control Register)
-   Chip_UART_SetupFIFOS(CIAA_BOARD_UART, UART_FCR_FIFO_EN | UART_FCR_TRG_LEV0);
-
-   // Enable UART Transmission
-   Chip_UART_TXEnable(CIAA_BOARD_UART);
-
-   Chip_SCU_PinMux(7, 1, MD_PDN, FUNC6);              /* P7_1: UART2_TXD */
-   Chip_SCU_PinMux(7, 2, MD_PLN|MD_EZI|MD_ZI, FUNC6); /* P7_2: UART2_RXD */
-
-   //Enable UART Rx Interrupt
-   Chip_UART_IntEnable(CIAA_BOARD_UART,UART_IER_RBRINT);   //Receiver Buffer Register Interrupt
-   
-   // Enable UART line status interrupt
-   //Chip_UART_IntEnable(CIAA_BOARD_UART,UART_IER_RLSINT ); //LPC43xx User manual page 1118
-   NVIC_SetPriority(USART2_IRQn, 6);
-   
-   // Enable Interrupt for UART channel
-//   NVIC_EnableIRQ(USART2_IRQn);
-//	NVIC_EnaIRQ(USART2_IRQn);
-}
-
 /************************************************************************
- * GPIO Interrupt Pin Select
- * PortSel	: Numero de interrupcion de GPIO (0 a 7)
- * PortNum	: GPIO port number interrupt, should be: 0 to 7
- * PinNum	: GPIO pin number Interrupt , should be: 0 to 31
+*Cambio de estado de LEDS
  ************************************************************************/
-void SCU_GPIOIntPinSel(unsigned char PortSel, unsigned char PortNum, unsigned char PinNum){
-	int despl = (PortSel & 3) << 3;
-	unsigned int val = (((PortNum & 0x7) << 5) | (PinNum & 0x1F)) << despl;
-	SCU->PINTSEL[PortSel >> 2] = (SCU->PINTSEL[PortSel >> 2] & ~(0xFF << despl)) | val;
-}
-
-/************************************************************************
- * Establecimiento de la prioridad de una interrupcion
- ************************************************************************/
-void NVIC_SetPri(IRQn_Type IRQn, unsigned int priority){
-	if(IRQn < 0) {
-	}
-	else {
-		_NVIC->IP[(unsigned int)(IRQn)] = ((priority << (8 - 2)) & 0xff);
-	}
-}
-
-void NVIC_EnaIRQ(IRQn_Type IRQn){
-	_NVIC->ISER[(unsigned int)((int)IRQn) >> 5] = (unsigned int)(1 << ((unsigned int)((int32_t)IRQn) & (unsigned int)0x1F));
-}
-
-void NVIC_DesIRQ(IRQn_Type IRQn){
-	_NVIC->ISER[(unsigned int)((int)IRQn) >> 5] = (unsigned int)(0 << ((unsigned int)((int32_t)IRQn) & (unsigned int)0x1F));
-}
-
-void Secuencia_Tecla(bool TEC, int PUERTO){
-	if(TEC==1 && PUERTO==0){
-		LED_ON(3);
-		LED_ON(4);
-		LED_ON(5);
-	}else if(TEC==0 && PUERTO==0){
-		LED_OFF(3);
-		LED_OFF(4);
-		LED_OFF(5);
-	}else if(TEC==1 && PUERTO==1){
-		LED_ON(0);
-	}else if(TEC==0 && PUERTO==1){
-		LED_OFF(0);
-	}else if(TEC==1 && PUERTO==2){
-		LED_ON(1);
-	}else if(TEC==0 && PUERTO==2){
-		LED_OFF(1);
-	}else if(TEC==1 && PUERTO==3){
-		LED_ON(2);
-	}else if(TEC==0 && PUERTO==3){
-		LED_OFF(2);
-	}
-}
-
-
-//Funcion de configuracion del ADC
-unsigned int ADC_CONFIG(unsigned int canal)
-		{
-		ADC0->INTEN = 0; 				// Deshabilitacion de las interrupcion generada
-										// cuando se termina una conversion
-										
-		/* Valores del Control Register (CR) */
-		ADC0->CR = 	(1 << canal)	// Seleccion del canal del ADC0
-					| (45 << 8)			// Valor + 1 que se usa para dividir el clock
-										// Debe ser tal de garantizar un reloj menor o
-										// igual a 4.5 MHz
-					| (0 << 16)			// Modo burst
-					| (0 << 17)			// Cantidad de ciclos de reloj para la conversion
-					| (0 << 20)			// Reservado
-					| (1 << 21)			// Power on
-					| (0 << 22)			// Reservado
-					| (1 << 24)			// Iniciar el AD
-					| (0 << 27)			// 
-					| (0 << 28);		// Reservado
-		}
-		
-//Funcion de interrupcion del ADC 
-unsigned int obt_datos(unsigned int canal)
+void GPIO_SetPinToggle(GPIO_T *pGPIO, unsigned char puerto, unsigned char pin)
 {
-	/* Habilitacion de la interrupcion del ADC */
-	
-	NVIC_EnaIRQ(ADC0_IRQn);
+	pGPIO->NOT[puerto] = (1 << pin); 
+}
 
-	ADC0->INTEN |= (1UL << canal);	// Habilitacion de la interrupcion generada
-											// cuando se termina una conversion	
-	ADC_Interrupt_Done_Flag = 1;
+/************************************************************************
+*Funcion para configuracion de las Teclas
+ ************************************************************************/
+void teclas_config(SCU_T *pSCU)
+{
+		pSCU->SFSP[1][0] = (0 << 0) | (1 << 4) | (1 << 6);
+		pSCU->SFSP[1][1] = (0 << 0) | (1 << 4) | (1 << 6);
+		pSCU->SFSP[1][2] = (0 << 0) | (1 << 4) | (1 << 6);
+		pSCU->SFSP[1][6] = (0 << 0) | (1 << 4) | (1 << 6);
+}
+
+/************************************************************************
+*Funcion para declarar las Teclas como entrada
+ ************************************************************************/
+void teclas_in(GPIO_T *pGPIO){
+    pGPIO->DIR[0] |= (0 << 4) | (0 << 8) | (0 << 9);
+    pGPIO->DIR[1] |= (0 << 9); 
+}
+
+/************************************************************************************
+ *	Funciones genericas
+ ************************************************************************************/
+
+void retardo(int base){
+    int i;
+    for(i=0;i<base;i++){}
+}
+
+void blink_delay(enum LEDS led, int delay){
+	led_on(led);
+	retardo(delay);
+	led_off(led);
+}
+
+/************************************************************************************
+ *	Funciones debug
+ ************************************************************************************/
+
+static void begin_telemetry_message(void){
+	static char aux[256];
+
+	sprintf_mio(aux, "#####################################\n\r");
+	DEBUGSTR(aux);
+	sprintf_mio(aux, "##### COMIENZA CAPTURA DE DATOS #####\n\r");
+	DEBUGSTR(aux);
+	sprintf_mio(aux, "#####################################\n\r");
+	DEBUGSTR(aux);
+}
+
+static void printchar(char **str, int c){
+	// extern int putchar(int c);
 	
-	while (1) {
-				if (ADC_Interrupt_Done_Flag == 1) 
-				{
-				ADC_Interrupt_Done_Flag = 0;
-				ADC0->CR |= (1 << 24);		// Inicio de una adquisicion
-				}
+	if (str) {
+		**str = c;
+		++(*str);
+	}
+	else 
+		uart_enviar_datos(CIAA_BOARD_UART_USB, c);
+		// uart_enviar_datos(CIAA_BOARD_UART_RS232, c);
+}
+
+#define PAD_RIGHT 1
+#define PAD_ZERO 2
+
+ static int prints(char **out, const char *string, int width, int pad)
+{
+	register int pc = 0, padchar = ' ';
+
+	if (width > 0) {
+		register int len = 0;
+		register const char *ptr;
+		for (ptr = string; *ptr; ++ptr) ++len;
+		if (len >= width) width = 0;
+		else width -= len;
+		if (pad & PAD_ZERO) padchar = '0';
+	}
+	if (!(pad & PAD_RIGHT)) {
+		for ( ; width > 0; --width) {
+			printchar (out, padchar);
+			++pc;
+		}
+	}
+	for ( ; *string ; ++string) {
+		printchar (out, *string);
+		++pc;
+	}
+	for ( ; width > 0; --width) {
+		printchar (out, padchar);
+		++pc;
 	}
 
-	/* Deshabilitacion de la interrupcion del ADC */
-	NVIC_DesIRQ(ADC0_IRQn);
-}		
-
-/* Impresion del valor adquirido y generacion de retardo */
-static void send_ADC_UART(uint16_t data){
-		sprintf_mio(debug, "Dato leido del ADC: %d\r\n", data);
-		DEBUGSTR(debug);
-		retardo(10000000);
+	return pc;
 }
 
-void _Configuracion_IO(void){
+/* the following should be enough for 32 bit int */
+#define PRINT_BUF_LEN 12
 
-    //Configuro pines (LEDs y teclas) como salida sin pull-up/pull-down con buffer habilitado
-	Config_LEDS(SCU_MODE_DES | SCU_MODE_EZI);
-	Config_Botones(SCU_MODE_DES | SCU_MODE_EZI);
+static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
+{
+	char print_buf[PRINT_BUF_LEN];
+	register char *s;
+	register int t, neg = 0, pc = 0;
+	register unsigned int u = i;
 
-	//Deshabilitación las resistencias de pull‐up/pull‐down del pin P4_4 y habilitación del DAC
-	SCU->SFSP[4][4] = (SCU_MODE_DES | SCU_MODE_FUNC7);
-	SCU->ENAIO[2] = 1;
+	if (i == 0) {
+		print_buf[0] = '0';
+		print_buf[1] = '\0';
+		return prints (out, print_buf, width, pad);
+	}
 
-    //Inicializo el PINTSEL (pag. 423 ARM NXP)
-	SCU->PINTSEL[0]=0x0;
-	
-    //Configutro Interrupción para puertos GPIO
-	//INTERRUPCION, PUERTO GPIO, Bit del PIN
-	SCU_GPIOIntPinSel(0, 0, 4);	// TEC_1
-	SCU_GPIOIntPinSel(1, 0, 8);	// TEC_2
-	SCU_GPIOIntPinSel(2, 0, 9);	// TEC_3
-	SCU_GPIOIntPinSel(3, 1, 9);	// TEC_4
-	
-	//Configuro interrupción por flanco descendente y la habilito
-	GPIO_PIN_INT->ISEL=0x0;  //Edge Sensitive (pag. 457)
-	GPIO_PIN_INT->IENF=0xF;  //Enable Falling Edge or Level interrupt (pag. 457)
-	GPIO_PIN_INT->SIENF=0xF; //Enable Falling Edge or Level interrupt (pag. 458)
-    
-	//Configuro prioridad de la IRQ para GPIO
-	//Estas interrupciones serán generadas por los GPIO y serán enviadas y gestionadas por NVIC
-	//PIN Number IRQ + Prioridad
-	NVIC_SetPri(PIN_INT0_IRQn,15);
-	NVIC_SetPri(PIN_INT1_IRQn,15);
-	NVIC_SetPri(PIN_INT2_IRQn,15);
-	NVIC_SetPri(PIN_INT3_IRQn,15);
-	//Se habilita IRQ en NVIC
-	NVIC_EnaIRQ(PIN_INT0_IRQn);
-	NVIC_EnaIRQ(PIN_INT1_IRQn);
-	NVIC_EnaIRQ(PIN_INT2_IRQn);
-	NVIC_EnaIRQ(PIN_INT3_IRQn);
+	if (sg && b == 10 && i < 0) {
+		neg = 1;
+		u = -i;
+	}
+
+	s = print_buf + PRINT_BUF_LEN-1;
+	*s = '\0';
+
+	while (u) {
+		t = u % b;
+		if( t >= 10 )
+			t += letbase - '0' - 10;
+		*--s = t + '0';
+		u /= b;
+	}
+
+	if (neg) {
+		if( width && (pad & PAD_ZERO) ) {
+			printchar (out, '-');
+			++pc;
+			--width;
+		}
+		else {
+			*--s = '-';
+		}
+	}
+
+	return pc + prints (out, s, width, pad);
 }
+
+static int print(char **out, int *varg)
+{
+	register int width, pad;
+	register int pc = 0;
+	register char *format = (char *)(*varg++);
+	char scr[2];
+
+	for (; *format != 0; ++format) {
+		if (*format == '%') {
+			++format;
+			width = pad = 0;
+			if (*format == '\0') break;
+			if (*format == '%') goto out;
+			if (*format == '-') {
+				++format;
+				pad = PAD_RIGHT;
+			}
+			while (*format == '0') {
+				++format;
+				pad |= PAD_ZERO;
+			}
+			for ( ; *format >= '0' && *format <= '9'; ++format) {
+				width *= 10;
+				width += *format - '0';
+			}
+			if( *format == 's' ) {
+				register char *s = *((char **)varg++);
+				pc += prints (out, s?s:"(null)", width, pad);
+				continue;
+			}
+			if( *format == 'd' ) {
+				pc += printi (out, *varg++, 10, 1, width, pad, 'a');
+				continue;
+			}
+			if( *format == 'x' ) {
+				pc += printi (out, *varg++, 16, 0, width, pad, 'a');
+				continue;
+			}
+			if( *format == 'X' ) {
+				pc += printi (out, *varg++, 16, 0, width, pad, 'A');
+				continue;
+			}
+			if( *format == 'u' ) {
+				pc += printi (out, *varg++, 10, 0, width, pad, 'a');
+				continue;
+			}
+			if( *format == 'c' ) {
+				/* char are converted to int then pushed on the stack */
+				scr[0] = *varg++;
+				scr[1] = '\0';
+				pc += prints (out, scr, width, pad);
+				continue;
+			}
+		}
+		else {
+		out:
+			printchar (out, *format);
+			++pc;
+		}
+	}
+	if (out) **out = '\0';
+	return pc;
+}
+
+/* assuming sizeof(void *) == sizeof(int) */
+
+int printf_mio(const char *format, ...)
+{
+	register int *varg = (int *)(&format);
+	return print(0, varg);
+}
+
+int sprintf_mio(char *out, const char *format, ...)
+{
+	register int *varg = (int *)(&format);
+	return print(&out, varg);
+}
+
