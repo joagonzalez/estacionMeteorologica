@@ -86,6 +86,14 @@ Diagrama de conexión
 
 - https://create.arduino.cc/projecthub/karimmufte/arduino-and-mq-135-gas-sensor-with-arduino-code-a8c1c6
 
+### Montaje
+![Figura 6](https://github.com/joagonzalez/unsam-telemetria/blob/refactor/doc/montaje_protoboard.jpg)
+
+### Dashboards Grafana
+![Figura 6](https://github.com/joagonzalez/unsam-telemetria/blob/refactor/doc/temperature_test_grafana.jpeg)
+ 
+ Descarga dashboard: https://github.com/joagonzalez/unsam-telemetria/blob/refactor/doc/sensores_dashboard.json
+ 
 ### Material de consulta
 - https://www.youtube.com/watch?v=G6CqvhXpBKM (programming esp8266 with arduino ide)
 - https://www.youtube.com/watch?v=6-RXqFS_UtU&list=PLNFq0T6Z3JPsMWtVgmqPnpIu41LNMDPiA&index=8 (serial communication esp8266 and arduino)
