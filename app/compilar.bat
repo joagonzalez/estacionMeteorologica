@@ -1,6 +1,23 @@
 @echo OFF
-SET BOARD=edu_cia_nxp
-SET NOMBRE=estacion_meteorologica
+REM **********************************************************************
+REM * Script para generar el archivo de programacion del micro LPC-4337  *
+REM * de la placa EDU-CIAA-NXP                                           *
+REM *                                                                    *
+REM * Fecha: 01/03/2020                                                  *
+REM *                                                                    *
+REM * Autor: Joaquin Gonzalez (UNSAM)                                    *
+REM *                                                                    *
+REM **********************************************************************
+
+SET NOMBRE=telemetria
+SET CPATH=.\src
+SET OPATH=.\obj
+SET INC_LPC_PATH=-I"..\lpcopen_lpc4337\inc"
+SET INC_PATH=.\inc
+SET FILENAME= 
+REM Flag para debugging
+REM SET DEBUG=-ggdb3
+setlocal EnableDelayedExpansion
 
 echo,
 echo ****************************************************************************************
@@ -14,13 +31,19 @@ echo ***************************************************************************
 echo,
 echo - Borrando el contenido de los directorios bin y obj ...
 
-del /f /Q bin
-del /f /Q obj
+del /f /q bin
+del /f /q obj
 
-arm-none-eabi-gcc -c -Wall -ggdb3 -fdata-sections --function-sections -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -I"./inc/" -I"..\lpcopen_lpc4337\inc" -DCORE_M4 ./src/%NOMBRE%.c -o ./obj/%NOMBRE%.o
+for /F %%x in ('dir /B/D %CPATH%') do (
+	arm-none-eabi-gcc -c -Wall %DEBUG% -fdata-sections --function-sections -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -I%INC_PATH% %INC_LPC_PATH% -DCORE_M4 %CPATH%/%%x -o ./obj/%%x
+	ren .\obj\%%x *.o
+)
 
-arm-none-eabi-gcc -c -Wall -ggdb3 -fdata-sections --function-sections -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -I"./inc/" -I"..\lpcopen_lpc4337\inc" -DCORE_M4 ./src/print_functions.c -o ./obj/print_functions.o
+for /F %%x in ('dir /B/D %OPATH%') do (
+	set "FILENAME=!FILENAME! %%x"
+)
 
+REM arm-none-eabi-gcc -c -Wall -ggdb3 -fdata-sections --function-sections -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -I"./inc/"  -I"C:\CIAA\Firmware\projects\_Ejemplos\lpcopen_lpc4337\inc" -DCORE_M4 ./src/print_functions.c -o ./obj/print_functions.o
 
 if exist obj/%NOMBRE%.o goto LINKEAR:
 	echo *******************************************************************
@@ -33,7 +56,13 @@ if exist obj/%NOMBRE%.o goto LINKEAR:
 echo,
 echo - Generacion de los archivos objeto: OK
 
-arm-none-eabi-gcc ./obj/%NOMBRE%.o ./obj/print_functions.o -Xlinker --start-group ./liblpcopen_lpc4337.a -Xlinker --end-group -o ./bin/%NOMBRE%.axf -fno-builtin -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -Wl,-Map="./bin/%NOMBRE%.map",-gc-sections -nostdlib -T "./ld/ciaa_lpc4337.ld"
+rem arm-none-eabi-gcc ./obj/%NOMBRE%.o -Xlinker --start-group ./liblpcopen_lpc4337.a -Xlinker --end-group -o ./bin/%NOMBRE%.axf -fno-builtin -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -Wl,-Map="./bin/%NOMBRE%.map",-gc-sections -nostdlib -T "./ld/ciaa_lpc4337.ld"
+
+cd obj
+
+arm-none-eabi-gcc %FILENAME% -Xlinker --start-group ../liblpcopen_lpc4337.a -Xlinker --end-group -o ../bin/%NOMBRE%.axf -fno-builtin -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mthumb -Wl,-Map="../bin/%NOMBRE%.map",-gc-sections -nostdlib -T "../ld/ciaa_lpc4337.ld" 
+	
+cd ..
 
 if exist bin/%NOMBRE%.axf goto GENBIN:
 	echo *******************************************************************
@@ -65,19 +94,19 @@ echo,
 
 openocd -l openocd.log -f ./cfg/ciaa-nxp.cfg -c "init" -c "halt 0" -c "flash write_image erase unlock ./bin/%NOMBRE%.bin 0x1A000000 bin" -c "reset run" -c "shutdown" 1> NUL
 
-REM find /I /c "Error" <openocd.log >tmp.log
-REM set /p ERROR_C=<tmp.log
+find /I /c "Error" <openocd.log >tmp.log
+set /p ERROR_C=<tmp.log
 
-REM IF NOT %ERROR_C%==0	(
-	REM echo,
-	REM echo  *** Error en el proceso de programacion del micro!
-	REM echo  *** Ver el archivo openocd.log
-	REM goto end;
-REM ) ELSE (
-	REM echo,
-	REM echo   Proceso de programacion: OK
-REM )
+IF NOT %ERROR_C%==0	(
+	echo,
+	echo  *** Error en el proceso de programacion del micro!
+	echo  *** Ver el archivo openocd.log
+	goto end;
+) ELSE (
+	echo,
+	echo   Proceso de programacion: OK
+)
 
 :END
-del /f /Q tmp.log
+del /f /q tmp.log
 echo,
